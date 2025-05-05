@@ -1,6 +1,11 @@
 from playwright.sync_api import sync_playwright
 import time
 from bs4 import BeautifulSoup
+from google import genai
+from google.genai import types
+
+from token import GEMINI_API_KEY
+
 
 def procurar_licitacoes():
     with sync_playwright() as p:
@@ -22,23 +27,38 @@ def procurar_licitacoes():
         html = pagina.content()
         soup = BeautifulSoup(html, 'html.parser')
 
+        # variavel auxiliar que ira armazenar o conteudo dos for
+        licitacoes = []
         #encontra e printa o elemento p do html
         for p in soup.find_all('p'):
-            print(p.text)
+            licitacoes.append(p.get_text())
         #encontra e printa o elemento b do html
         for b in soup.find_all('b'):
             if b.get_text().strip() == "Objeto:":
                 texto_completo = b.next_sibling
                 if texto_completo:
                     texto_final = texto_completo.replace('\xa0', ' ').strip()
-                    print(texto_final)
+                    licitacoes.append(texto_final)
         # encontra e printa o elemento span do html
         for span in soup.find_all('span'):
-            print(span.text)
+            licitacoes.append(span.get_text())
         # encontra e printa o elemento td do html
         for td in soup.find_all('td'):
-            print(td.text)
-        time.sleep(15) #vai esperar 5 segundo ate fechar meu navegador
+            licitacoes.append(td.get_text())
+        # vai esperar 15 segundo ate fechar meu navegador
+        time.sleep(15)
+        return licitacoes
+
+#funcao que ira gerar um relatorio por uma IA
+client = genai.Client(api_key=GEMINI_API_KEY)
+response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    config=types.GenerateContentConfig(
+        system_instruction="Você é um analista de licitações experiente, com profundo conhecimento em editais públicos, concorrências, pregões eletrônicos e processos administrativos. Sua tarefa é analisar os dados a seguir e gerar um relatório profissional e detalhado. O relatório deve conter:Resumo da licitação: tipo, número, órgão responsável e objeto.Análise dos requisitos: principais exigências técnicas e jurídicas.Riscos e oportunidades: o que pode impactar negativamente ou positivamente a participação da empresa.Conclusão e recomendação: se é viável participar da licitação, com justificativa."),
+    contents=f"{procurar_licitacoes()}"
+)
+
+print(response.text)
 
 if __name__ == "__main__":
     procurar_licitacoes()
