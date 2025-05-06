@@ -1,11 +1,15 @@
+from importlib.resources import contents
 from playwright.sync_api import sync_playwright
 import time
 from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
-
-from token import GEMINI_API_KEY
-
+import reportlab.lib.pagesizes as pagesizes
+from reportlab.pdfgen import canvas
+from textwrap import wrap
+from reportlab.lib.pagesizes import A4
+import os
+import re
 
 def procurar_licitacoes():
     with sync_playwright() as p:
@@ -50,7 +54,8 @@ def procurar_licitacoes():
         return licitacoes
 
 #funcao que ira gerar um relatorio por uma IA
-client = genai.Client(api_key="sua-chave-aqui")
+api_key = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=api_key)
 response = client.models.generate_content(
     model="gemini-2.0-flash",
     config=types.GenerateContentConfig(
@@ -58,7 +63,45 @@ response = client.models.generate_content(
     contents=f"{procurar_licitacoes()}"
 )
 
-print(response.text)
+def limpar_markdown(response):
+    response.text = re.sub(r'\*\*(.*?)\*\*', r'\1', response.text)
+    response.text = re.sub(r'\*(.*?)\*', r'\1', response.text)
+    response.text = re.sub(r'##+', '', response.text)
+    response.text = response.text.replace('■', '')
+    return response.text
+
+# Criar um objeto PageSize
+page_size = pagesizes.letter
+
+# Criar um objeto Canvas
+canvas = canvas.Canvas('relatorio.pdf',pagesize=A4)
+largura, altura = A4
+# definir o tamanho da página
+canvas.setPageSize(page_size)
+
+# adicionar texto à página
+conteudo = response.text
+canvas.drawString(100, 750, conteudo)
+# Texto
+canvas.setFont("Helvetica", 12)
+y = altura - 90
+
+# Quebra o texto em linhas com no máximo 200 caracteres
+linhas = wrap(conteudo, width=100)
+
+for linha in linhas:
+    canvas.drawString(50, y, linha)
+    y -= 20
+    # Se chegar ao final da página, cria nova
+    if y < 50:
+        canvas.showPage()
+        canvas.setFont("Helvetica", 12)
+        y = altura - 50
+
+
+# fechar o arquivo PDF
+canvas.showPage()
+canvas.save()
 
 if __name__ == "__main__":
     procurar_licitacoes()
