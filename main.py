@@ -54,7 +54,7 @@ def procurar_licitacoes():
 #funcao que ira gerar um relatorio por uma IA
 dados = procurar_licitacoes()
 #api_key = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key="AIzaSyASo5XExbsu-UFgHmluhplhF98IOmOLSh0" )
+client = genai.Client(api_key="" )
 response = client.models.generate_content(
     model="gemini-2.0-flash",
     config=types.GenerateContentConfig(
